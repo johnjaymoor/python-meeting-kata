@@ -1,5 +1,5 @@
 import unittest
-import free_calendar_slots_finder
+import meetings
 
 
 class TestFreeCalendarSlotsFinder(unittest.TestCase):
@@ -25,7 +25,7 @@ class TestFreeCalendarSlotsFinder(unittest.TestCase):
         ]
         self.assertEqual(
             result,
-            free_calendar_slots_finder.calculate_free_slots_for_meeting(
+            meetings.get_free_slots(
                 calendar1,
                 daily_bound1,
                 calendar2,
@@ -55,10 +55,14 @@ class TestFreeCalendarSlotsFinder(unittest.TestCase):
         ]
         self.assertEqual(
             result,
-            free_calendar_slots_finder.calculate_free_slots_for_meeting(
+            meetings.get_free_slots(
                 calendar1,
                 daily_bound1,
                 calendar2,
                 daily_bound2,
                 duration)
         )
+
+
+if __name__ == '__main__':
+    unittest.main()
