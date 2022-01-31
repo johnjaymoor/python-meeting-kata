@@ -1,61 +1,106 @@
-def get_free_slots(calendar1, daily_bounds1, calendar2, daily_bounds2, meeting_duration):
+from typing import List
+
+
+class Slot:
+    start: str
+    end: str
+
+    def __init__(self, slot: list):
+        self.start, self.end = slot
+
+    def starts_inside(self, other: "Slot") -> bool:
+        """
+        Return true if slot start time starts inside the other slot
+
+        :param other: Slot
+        :return: bool
+        """
+        return True if other.get_start_in_minutes() \
+                       <= self.get_start_in_minutes() \
+                       <= other.get_end_in_minutes() else False
+
+    def get_start_in_minutes(self) -> int:
+        return Slot.strtime_to_minute(self.start)
+
+    def get_end_in_minutes(self) -> int:
+        return Slot.strtime_to_minute(self.end)
+
+    @classmethod
+    def strtime_to_minute(cls, slot_time: str) -> int:
+        """
+        Return the minutes passed since 00:00 from a time string with HH:MM format
+
+        :param slot_time: str [HH:MM]
+        :return: int
+        """
+        hour, minute = slot_time.split(':')
+        return int(hour) * 60 + int(minute)
+
+
+class Calendar:
+    slots: List[Slot]
+
+    def __init__(self, slots: list):
+        self.slots = [Slot(slot) for slot in slots]
+
+    def append(self, slot: Slot):
+        self.slots.append(slot)
+
+    def get_free_slots(self, daily_bounds: Slot) -> "Calendar":
+        """
+        Return a Calendar with free slots between daily bounds
+
+        :param daily_bounds: Slot with daily boundaries
+        :return: Calendar
+        """
+        free_slots = Calendar([])
+        start_time, end_time = daily_bounds.start, daily_bounds.end
+        for slot in self.slots:
+            if start_time != slot.start:
+                free_slots.append(Slot([start_time, slot.start]))
+            start_time = slot.end
+        if start_time != end_time:
+            free_slots.append(Slot([start_time, end_time]))
+        return free_slots
+
+    def intersects(self, calendar: "Calendar") -> "Calendar":
+        """
+        Intersection between calendars
+        
+        :param calendar: 
+        :return: Calendar
+        """
+        intersect_time_slots = Calendar([])
+        for slot1 in self.slots:
+            for slot2 in calendar.slots:
+                if slot1.starts_inside(slot2):
+                    intersect_time_slots.append(Slot([slot1.start, slot2.end]))
+                elif slot2.starts_inside(slot1):
+                    intersect_time_slots.append(Slot([slot2.start, slot1.end]))
+        return intersect_time_slots
+
+
+def get_free_slots(slots1: list, daily_bounds1: list, slots2: list, daily_bounds2: list, meeting_duration: int):
     """
     Return the available slots of time from two calendars,
     two daily bounds and the meeting duration in minutes.
-    
-    :param calendar1:
+
+    :param slots1:
     :param daily_bounds1:
-    :param calendar2:
+    :param slots2:
     :param daily_bounds2:
     :param meeting_duration:
-    :return: []
+    :return:
     """
-    free_slots_1 = _find_free_slots(calendar1, daily_bounds1, meeting_duration)
-    free_slots_2 = _find_free_slots(calendar2, daily_bounds2, meeting_duration)
-    return _get_intersection_slots(free_slots_1, free_slots_2, meeting_duration)
-
-
-def _find_free_slots(calendar, daily_bounds, meeting_duration):
-    free_slots = []
-    start_time, end_time = daily_bounds
-    for hour, minute in calendar:
-        if _is_slot_long_enough(start_time, hour, meeting_duration):
-            free_slots.append([start_time, hour])
-        start_time = minute
-    if _is_slot_long_enough(start_time, end_time, meeting_duration):
-        free_slots.append([start_time, end_time])
-    return free_slots
-
-
-def _is_slot_long_enough(start_time, end_time, meeting_duration):
-    slot_start_in_minutes = _strtime_to_min(start_time)
-    slot_end_in_minutes = _strtime_to_min(end_time)
-    return True if meeting_duration <= (slot_end_in_minutes - slot_start_in_minutes) else False
-
-
-def _get_intersection_slots(free_slots_1, free_slots_2, meeting_duration):
-    intersect_time_slots = []
-    for slot1 in free_slots_1:
-        for slot2 in free_slots_2:
-            _add_intersect_slots(meeting_duration, intersect_time_slots, slot1, slot2)
-    return intersect_time_slots
-
-
-def _add_intersect_slots(meeting_duration, intersect_time_slots, slot1, slot2):
-    if _starts_slot1_inside_slot2(slot1, slot2):
-        if _strtime_to_min(slot2[1]) - _strtime_to_min(slot1[0]) >= meeting_duration:
-            intersect_time_slots.append([slot1[0], slot2[1]])
-    elif _starts_slot1_inside_slot2(slot2, slot1):
-        if _strtime_to_min(slot1[1]) - _strtime_to_min(slot2[0]) >= meeting_duration:
-            intersect_time_slots.append([slot2[0], slot1[1]])
-
-
-def _starts_slot1_inside_slot2(slot1, slot2):
-    return True if _strtime_to_min(slot1[0]) >= _strtime_to_min(slot2[0]) \
-                   and _strtime_to_min(slot1[0]) <= _strtime_to_min(slot2[1]) \
-        else False
-
-
-def _strtime_to_min(slot_time):
-    hour, minute = slot_time.split(':')
-    return int(hour) * 60 + int(minute)
+    calendar1 = Calendar(slots1)
+    calendar2 = Calendar(slots2)
+    daily_slot1 = Slot(daily_bounds1)
+    daily_slot2 = Slot(daily_bounds2)
+    calendar_free_slots_1 = calendar1.get_free_slots(daily_slot1)
+    calendar_free_slots_2 = calendar2.get_free_slots(daily_slot2)
+    calendar_intersection = calendar_free_slots_1.intersects(calendar_free_slots_2)
+    meeting_matching_slots = []
+    for slot in calendar_intersection.slots:
+        if slot.get_end_in_minutes() - slot.get_start_in_minutes() >= meeting_duration:
+            meeting_matching_slots.append([slot.start, slot.end])
+    return meeting_matching_slots
